@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Accessible Map</title>
+    <link rel="stylesheet" href="https://openlayers.org/en/v4.1.1/css/ol.css" type="text/css">
+    <!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
+    <script src="jquery-3.2.1.min.js"></script>
+    <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+    <script src="https://openlayers.org/en/v4.1.1/build/ol.js"></script>
+    <style>
+      a.skiplink {
+        position: absolute;
+        clip: rect(1px, 1px, 1px, 1px);
+        padding: 0;
+        border: 0;
+        height: 1px;
+        width: 1px;
+        overflow: hidden;
+      }
+      a.skiplink:focus {
+        clip: auto;
+        height: auto;
+        width: auto;
+        background-color: #fff;
+        padding: 0.3em;
+      }
+      #map:focus {
+        outline: #4A74A8 solid 0.15em;
+      }
+      #map{
+        height: 500px!important;
+        width: auto;
+      }
+      #center {
+          top: 50%;
+          left: 50%;
+          width: 1px;
+          height: 1px;
+          margin-top: -20px;
+          margin-left: -20px;
+          padding-top: 5px;
+          padding-left: 5px;
+          border: 2px solid red;
+          z-index: 10000;
+          position: relative;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skiplink" href="#map">Go to map</a>
+    <div id="map" class="map" tabindex="0">
+       <div id="center"></div>
+    </div>
+    <div id="mouse-position" style="margin-top: 50px;"></div>
+    <button id="zoom-out">Zoom out</button>
+    <button id="zoom-in">Zoom in</button>
+<button style="margin-top: 30px;" id="getCordenadas" >Show car position (map center)</button>
+<form>
+      <label>Projection </label>
+      <select id="projection">
+        <option value="EPSG:4326">EPSG:4326</option>
+        <option value="EPSG:3857">EPSG:3857</option>
+      </select>
+      <label>Precision </label>
+      <input id="precision" type="number" min="0" max="12" value="4"/>
+    </form>
+    <input id="direccion" type="text" />
+    <input id="direccionButon" type="button" value="Go"/>
+    <input id="track" type="checkbox"/>
+    <script>
+
+      var mousePositionControl = new ol.control.MousePosition({
+        coordinateFormat: ol.coordinate.createStringXY(4),
+        projection: 'EPSG:4326',
+        // comment the following two lines to have the mouse position
+        // be placed within the map.
+        className: 'custom-mouse-position',
+        target: document.getElementById('mouse-position'),
+        undefinedHTML: '&nbsp;'
+      });
+
+
+      var map = new ol.Map({
+        controls: ol.control.defaults({
+          attributionOptions: /** @type {olx.control.AttributionOptions} */ ({
+            collapsible: false
+          })
+        }).extend([mousePositionControl]),
+        layers: [
+          new ol.layer.Tile({
+            source: new ol.source.OSM()
+          })
+        ],
+        target: 'map',
+        view: new ol.View({
+          //projection:"EPSG:4326",
+          center: [-109.434814453125, 27.055206298828],
+          zoom: 2
+        })
+      });
+    
+      map.on('click', function(event) {
+        debugger;
+        var test =map.getView().getCenter();
+        // map.getView().setProjection("EPSG:4326");
+        var proyecion =map.getView().getProjection();
+
+        var coord = [7.85, 47.983333];
+        var stringifyFunc = ol.coordinate.createStringXY(12);
+        var out = stringifyFunc(test);
+        alert(out);
+      });
+
+      //=============================================================
+      var projectionSelect = document.getElementById('projection');
+      projectionSelect.addEventListener('change', function(event) {
+        debugger
+        mousePositionControl.setProjection(ol.proj.get(event.target.value));
+      });
+
+      var precisionInput = document.getElementById('precision');
+      precisionInput.addEventListener('change', function(event) {
+        debugger
+        var format = ol.coordinate.createStringXY(event.target.valueAsNumber);
+        mousePositionControl.setCoordinateFormat(format);
+      });
+
+
+      // document.getElementById('zoom-out').onclick = function() {
+      //   var view = map.getView();
+      //   var zoom = view.getZoom();
+      //   view.setZoom(zoom - 1);
+      // };
+
+      // document.getElementById('zoom-in').onclick = function() {
+      //   var view = map.getView();
+      //   var zoom = view.getZoom();
+      //   view.setZoom(zoom + 1);
+      // };
+      document.getElementById('getCordenadas').onclick = function(event) {
+        debugger;
+        
+        // var view = map.getView();
+        // var zoom = view.getZoom();
+        // view.setZoom(zoom + 1);
+
+
+
+        var test =map.getView().getCenter();
+        var transformacion=ol.proj.transform([test[0],test[1]], 'EPSG:3857','EPSG:4326');
+        
+        var proyecion =map.getView().getProjection();
+        alert(transformacion);
+        var coord = [7.85, 47.983333];
+        var stringifyFunc = ol.coordinate.createStringXY(12);
+        var out = stringifyFunc(test);
+        alert(out);
+      };
+
+      function getCordenadasByDireccion(direccion){
+        debugger;
+        $.ajax({
+          url: "http://nominatim.openstreetmap.org/search?q="+direccion+"&format=json&addressdetails=1&limit=1&polygon_svg=1"
+        })
+          .done(function( data ) {
+            alert(data[0].lat +"===="+  data[0].lon)
+            var lat=parseFloat(data[0].lat);
+            var lon=parseFloat(data[0].lon);
+
+            map.getView().setCenter(ol.proj.fromLonLat([lon, lat]));
+            // map.getView().setCenter(ol.proj.fromLonLat([-109, 27]));
+            map.getView().setZoom(13);
+
+            if ( console && console.log ) {
+              console.log( "Sample of data:", data.slice( 0, 100 ) );
+            }
+          })
+          .fail(function() {
+              alert( "error" );
+            })
+            .always(function() {
+              alert( "complete" );
+            });
+
+      }
+
+
+      //===============================================================
+
+
+      var geolocation = new ol.Geolocation({
+        projection: map.getView().getProjection()
+      });
+
+      function el(id) {
+        return document.getElementById(id);
+      }
+
+      el('track').addEventListener('change', function() {
+        geolocation.setTracking(this.checked);
+      });
+
+      // update the HTML page when the position changes.
+      geolocation.on('change', function() {
+        el('accuracy').innerText = geolocation.getAccuracy() + ' [m]';
+        el('altitude').innerText = geolocation.getAltitude() + ' [m]';
+        el('altitudeAccuracy').innerText = geolocation.getAltitudeAccuracy() + ' [m]';
+        el('heading').innerText = geolocation.getHeading() + ' [rad]';
+        el('speed').innerText = geolocation.getSpeed() + ' [m/s]';
+      });
+
+      // handle geolocation error.
+      geolocation.on('error', function(error) {
+        var info = document.getElementById('info');
+        info.innerHTML = error.message;
+        info.style.display = '';
+      });
+
+      var accuracyFeature = new ol.Feature();
+      geolocation.on('change:accuracyGeometry', function() {
+        accuracyFeature.setGeometry(geolocation.getAccuracyGeometry());
+      });
+
+      var positionFeature = new ol.Feature();
+      positionFeature.setStyle(new ol.style.Style({
+        image: new ol.style.Circle({
+          radius: 6,
+          fill: new ol.style.Fill({
+            color: '#3399CC'
+          }),
+          stroke: new ol.style.Stroke({
+            color: '#fff',
+            width: 2
+          })
+        })
+      }));
+
+      geolocation.on('change:position', function() {
+        var coordinates = geolocation.getPosition();
+        positionFeature.setGeometry(coordinates ?
+            new ol.geom.Point(coordinates) : null);
+      });
+
+      new ol.layer.Vector({
+        map: map,
+        source: new ol.source.Vector({
+          features: [accuracyFeature, positionFeature]
+        })
+      });
+
+
+
+
+//=========================================================
+
+
+
+
+
+
+
+
+      $(function() {
+
+
+        $( "#direccionButon" ).on( "click", function() {
+          debugger;
+          var texto=$("#direccion").val();
+          getCordenadasByDireccion(texto);
+          
+        });
+
+
+      });
+
+    </script>
+    
+  </body>
+</html>
